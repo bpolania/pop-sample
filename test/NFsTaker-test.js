@@ -42,7 +42,7 @@ describe("NFsTaker with NFT", function () {
   it("Should add NFT", async function () {
     await nfstaker.connect(owner).setOperatorRole(owner.address);
     await nfstaker.addNFT(pop.address, ethers.BigNumber.from(10));
-    const addresses = await nfstaker.getNftsAdressesList();
+    const addresses = await nfstaker.getAllNftsAddresses();
     expect(await addresses.includes(pop.address)).to.eql(true); 
   });
 });
@@ -72,11 +72,21 @@ describe("NFsTaking", function () {
     balance = await poptoken.balanceOf(address1.address);
     await popnft.connect(address1).approve(nfstaker.address, 1);
     await nfstaker.connect(address1).stake(popnft.address, 1);
-    console.log(await poptoken.balanceOf(address1.address));
   });
 
   it("Should stake an NFT and have the right amount of tokens afterwards", async function () {
     expect(await poptoken.balanceOf(address1.address)).to.eql(balance.add(10)); 
+  });
+
+  it("Should register the id of the staked NFT", async function () {
+    let ids = await nfstaker.getStakedIds(address1.address,popnft.address);
+    var result = false;
+    for (var number in ids) {
+      if (Number(ids[number]) == 1) {
+        result = true;
+      }
+    }
+    expect(result).to.eql(true); 
   });
 
   it("Should stake an NFT and the contract should own the NFT afterwards", async function () {

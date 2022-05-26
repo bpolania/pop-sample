@@ -42,6 +42,4 @@ contract NFT is ERC721, PullPayment, Ownable {
   function _baseURI() internal view virtual override returns (string memory) {
     return baseTokenURI;
   }
-
-  
 }

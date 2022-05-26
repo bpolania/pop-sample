@@ -21,17 +21,18 @@ contract NFsTaker is AccessControlUpgradeable, OwnableUpgradeable, ReentrancyGua
     address public popNft;
     address[] public nftAddresses;
     
-    mapping(address => uint256) nfts;
-    mapping(address =>  mapping(address => uint256)) stakers;
+    mapping(address => uint64) nfts;
+    mapping(address =>  mapping(address => uint64)) stakers;
+    mapping(address =>  mapping(address => uint64[])) staked;
     mapping(address => address[]) stakedNftAddresses;
     
     PoPToken internal pop;
     IERC721 internal nft;
 
     event Funding(address indexed _from, uint256 _amount);
-    event Transfer(address indexed _from, uint256 _tokenId);
-    event Staked(address indexed _from, uint256 _tokenId);
-    event Unstaked(address indexed _from, uint256 _tokenId);
+    event Transfer(address indexed _from, uint64 _tokenId);
+    event Staked(address indexed _from, uint64 _tokenId);
+    event Unstaked(address indexed _from, uint64 _tokenId);
     event OperatorRoleSet(address indexed _to);
     event Approved(uint256 _amount);
 
@@ -78,8 +79,8 @@ contract NFsTaker is AccessControlUpgradeable, OwnableUpgradeable, ReentrancyGua
      * @param _tokenId the id of the token being staked
      * @dev emits a `Staked` event, and updates the `stakers` map
      */
-    function stake(address _nft, uint256 _tokenId) external nonReentrant {
-        uint256 stakeAmount = nfts[_nft];
+    function stake(address _nft, uint64 _tokenId) external nonReentrant {
+        uint64 stakeAmount = nfts[_nft];
         address staker = msg.sender;
         nft = IERC721(_nft);
         require(stakeAmount != 0, 'This NFT is not stakeable');
@@ -87,6 +88,7 @@ contract NFsTaker is AccessControlUpgradeable, OwnableUpgradeable, ReentrancyGua
         approveAndTransfer(staker, address(this), _nft, _tokenId);
         pop.mint(staker, stakeAmount);
         stakers[staker][_nft] =  stakeAmount;
+        staked[staker][_nft].push(_tokenId);
         stakedNftAddresses[staker].push(_nft);
         emit Staked(staker, stakeAmount);
     }
@@ -98,15 +100,16 @@ contract NFsTaker is AccessControlUpgradeable, OwnableUpgradeable, ReentrancyGua
      * @param _amount the amount of tokens sent to unstake
      * @dev emits a `Unstaked` event, and updates the `stakers` map
      */
-    function unstake(address _nft, uint256 _tokenId, uint256 _amount) external nonReentrant {
+    function unstake(address _nft, uint64 _tokenId, uint256 _amount) external nonReentrant {
         address staker = msg.sender;
-        uint256 stakeAmount = stakers[staker][_nft];
+        uint64 stakeAmount = stakers[staker][_nft];
         require(stakeAmount == _amount, 'Stake amount does not match');
         require(address(this) == nft.ownerOf(_tokenId), 'We do not own this NFT');
         pop.burnFrom(msg.sender, _amount);
         approveAndTransfer(address(this), staker, _nft, _tokenId);
         stakers[staker][_nft] = 0;
         removeNft(staker, _nft);
+        removeId(staker, _nft);
         emit Unstaked(staker, stakeAmount);
     }
 
@@ -116,25 +119,45 @@ contract NFsTaker is AccessControlUpgradeable, OwnableUpgradeable, ReentrancyGua
      * @param _amount the amount of tokens that must be sent to stake this ERC-721 token
      * @dev only addresses using the operator role can call this function
      */
-    function addNFT(address _nft, uint256 _amount) external nonReentrant onlyOperator {
+    function addNFT(address _nft, uint64 _amount) external nonReentrant onlyOperator {
         nfts[_nft] = _amount;
         nftAddresses.push(_nft);
     }
 
     /** 
-     * Gets a list of NFTs
+     * Gets a list of all NFTs
      * @return address[] the list of NFTS
      */
-    function getNftsAdressesList() external view returns(address[] memory) {
+    function getAllNftsAddresses() external view returns(address[] memory) {
         return nftAddresses;
     }
 
     /** 
-     * Gets a list of NFTs
+     * Gets a list of NFTs staked by an account
+     * @param account the address of the account
      * @return address[] the list of NFTS
      */
-    function getNftsAdresses(address account) external view returns(address[] memory) {
+    function getNftsAddressesOf(address account) external view returns(address[] memory) {
         return stakedNftAddresses[account];
+    }
+
+    /** 
+     * Gets the staking amount of an NFT
+     * @param _nft the address of the ERC-721 token contract
+     * @return address[] the list of NFTS
+     */
+    function getStakingAmountOf(address _nft) external view returns(uint256) {
+        return nfts[_nft];
+    }
+
+    /** 
+     * Gets the ids of the NFTs staked by an account 
+     * @param _staker the address of the staker 
+     * @param _nft the address of the ERC-721 token contract
+     * @return uint256[] a list of ids
+     */
+    function getStakedIds(address _staker, address _nft) external view returns(uint64[] memory) {
+        return staked[_staker][_nft];
     }
 
     /** 
@@ -177,7 +200,7 @@ contract NFsTaker is AccessControlUpgradeable, OwnableUpgradeable, ReentrancyGua
         address _from, 
         address _to, 
         address _nft, 
-        uint256 _tokenId
+        uint64 _tokenId
     ) 
         internal 
     {
@@ -197,5 +220,10 @@ contract NFsTaker is AccessControlUpgradeable, OwnableUpgradeable, ReentrancyGua
         }
         stakedNfts[index] = stakedNfts[stakedNfts.length - 1];
         stakedNfts.pop();
+    }
+
+    function removeId(address staker, address stakedNft) internal {
+        uint64[] storage ids = staked[staker][stakedNft];
+        ids.pop();
     }
 }

@@ -28,7 +28,7 @@ async function main() {
   await nfstaker.connect(owner).setOperatorRole(owner.address);
   await pop.setMinterRole(nfstaker.address);
   await nfstaker.setPopToken(pop.address);
-  await nfstaker.addNFT("0x74acac453a92a846a7280FB09b486c4a67896f24", 10);
+  await nfstaker.addNFT("0xD0481856Cc423651233920Ed3092579c0cB1Db6a", ethers.BigNumber.from("10"));
 
   console.log("PoP deployed to:", pop.address);
   console.log("NFsTaker deployed to:", nfstaker.address);

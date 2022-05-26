@@ -19,8 +19,9 @@ async function main() {
   [owner] = await ethers.getSigners();
 
   let PoP = artifacts.require("contracts/PoPNFT.sol:NFT");
-  let pop = await PoP.at('0x74acac453a92a846a7280FB09b486c4a67896f24');
-  await pop.mintTo(await owner.address);
+  let pop = await PoP.at('0xD0481856Cc423651233920Ed3092579c0cB1Db6a');
+  let id = await pop.mintTo(await owner.address);
+  console.log("PoP minted id:", id);
   console.log("PoP minted to:", owner.address);
 }
 
